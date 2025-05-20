@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Чат с AI</title>
+  <style>
+    body {
+      background: #fafbfc;
+      font-family: sans-serif;
+    }
+    .chat-container {
+      max-width: 600px;
+      margin: 40px auto;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 24px;
+      background: #fafbfc;
+    }
+    .chat-title {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .messages {
+      min-height: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .msg {
+      border-radius: 8px;
+      padding: 8px 14px;
+      max-width: 70%;
+      box-shadow: 0 1px 3px #0001;
+      color: #222;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #e6f7ff;
+    }
+    .msg.ai {
+      align-self: flex-start;
+      background: #f6f6f6;
+    }
+    .meta {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 2px;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .input-row input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      font-size: 16px;
+    }
+    .input-row button {
+      padding: 0 18px;
+      border-radius: 6px;
+      border: none;
+      background: #1677ff;
+      color: #fff;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .input-row button:disabled {
+      background: #b3d1ff;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <h2 class="chat-title">Чат с AI</h2>
+    <div class="messages" id="messages"></div>
+    <div class="input-row">
+      <input id="input" type="text" placeholder="Введите сообщение..." />
+      <button id="sendBtn">Отправить</button>
+    </div>
+  </div>
+  <script>
+    const API_URL = 'http://localhost:3000/chat';
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    let loading = false;
+    const messages = [];
+
+    function formatDate(date) {
+      return date.toLocaleString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+      });
+    }
+
+    function renderMessages() {
+      messagesDiv.innerHTML = '';
+      messages.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = 'msg ' + (msg.sender === 'Пользователь' ? 'user' : 'ai');
+        div.innerHTML = `<div class="meta">${msg.sender} • ${formatDate(msg.date)}</div><div>${msg.text}</div>`;
+        messagesDiv.appendChild(div);
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    async function sendMessage() {
+      if (loading) return;
+      const text = input.value.trim();
+      if (!text) return;
+      const userMsg = {
+        text,
+        sender: 'Пользователь',
+        date: new Date()
+      };
+      messages.push(userMsg);
+      renderMessages();
+      input.value = '';
+      input.disabled = true;
+      sendBtn.disabled = true;
+      loading = true;
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        const aiMsg = {
+          text: data.response || 'Нет ответа от AI',
+          sender: 'AI',
+          date: new Date()
+        };
+        messages.push(aiMsg);
+        renderMessages();
+      } catch (e) {
+        messages.push({
+          text: 'Ошибка при получении ответа от сервера',
+          sender: 'AI',
+          date: new Date()
+        });
+        renderMessages();
+      } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        loading = false;
+        input.focus();
+      }
+    }
+
+    sendBtn.onclick = sendMessage;
+    input.onkeydown = e => {
+      if (e.key === 'Enter') sendMessage();
+    };
+  </script>
+</body>
+</html> 
